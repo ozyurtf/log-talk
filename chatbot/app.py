@@ -26,9 +26,6 @@ async def main(message: cl.Message):
         user_id = "fozyurt"
         flight_status = get_flight_data(user_id, file_id)       
         
-        # Consider replacing this with ChatPromptTemplate. 
-        # If you do that, you won't need message_history because 
-        # everything will be kept in memory automatically with ChatPromptTemplate.
         context = f"""
                    FLIGHT DATA LOADED:
                    File: {flight_status.get('filename')}
@@ -45,7 +42,6 @@ async def main(message: cl.Message):
     if url:
         try: 
             retriever = await process_url(url)
-            # Do we really need this ?
             cl.user_session.set("retriever", retriever)
         except Exception: 
             pass
