@@ -1,14 +1,3 @@
-## Notes:
-# You're using in-memory storage. This is fine for prototyping, but won’t scale or persist across app restarts.
-# The client provides file_id. Ideally, this should be server-generated (uuid4()) to prevent collisions and security issues.
-# No authentication/authorization. Right now, if I guess a user_id header, I could read or delete someone else's files.
-# CORS allows all origins ("*"), which isn’t safe for production.
-# File size limit is checked manually; ideally should be enforced via middleware or FastAPI config (?)
-# File I/O and large payloads could benefit from streaming rather than loading whole file into memory.
-# No mention of unit/integration tests.
-# Would be great to include structured logging (e.g., logging.info, logging.error) for real-world observability.
-# Some endpoints return raw dicts; using Pydantic response models across the board would ensure consistency and better docs. (?)
-
 from openai import AsyncOpenAI
 import chainlit as cl
 import requests
