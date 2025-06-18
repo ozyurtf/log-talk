@@ -78,7 +78,8 @@ export default {
     data () {
         return {
             state: store,
-            dataExtractor: null
+            dataExtractor: null,
+            showChatbot: false
         }
     },
     methods: {

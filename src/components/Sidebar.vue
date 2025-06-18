@@ -3,7 +3,7 @@
     <div class="nav-side-menu col-lg-2">
 
         <h1 class="brand">
-            <a class="github" href="https://github.com/ardupilot/uavlogviewer">
+            <a class="github" href="https://github.com/ozyurtf/uav-log-viewer">
             <img :src="require('../assets/GitHub-Mark-64px.png').default"/>
             </a>
             <a href="/"><b>UAV</b> Log Viewer<i class="fas fa-plane"></i></a><a class="github" href="https://ardupilot.org/copter/docs/common-uavlogviewer.html"><img :src="require('../assets/wiki.svg').default"/></a></h1>
@@ -15,6 +15,9 @@
                 <!-- Home -->
                 <a :class="selected === 'home' ? 'selected' : ''" @click="selected='home'" v-if="!state.processDone">
                 <i class="fas fa-home"></i>Home</a>
+                <!-- Home -->
+                <a :class="selected === 'chat' ? 'selected' : ''" @click="selected='chat'">
+                <i class="fas fa-comments"></i>Chatbot</a>
                 <!-- Plot -->
                 <a :class="selected === 'plot' ? 'selected' : ''" @click="selected='plot'"
                    v-if="state.processDone"> <i class="fas fa-chart-line"></i>Plot</a>
@@ -36,6 +39,14 @@
                     <Dropzone/>
                     <span class="buildinfo">Commit {{state.commit}}</span>
                     <span class="buildinfo">Built {{state.buildDate}}</span>
+                </div>
+                <div v-show="selected === 'chat'" class="chat-container">
+                    <iframe
+                        src="http://localhost:8000"
+                        width="100%"
+                        frameborder="0"
+                        class="chat-iframe">
+                    </iframe>
                 </div>
                 <div v-if="selected==='other'">
                     <!-- PARAM/MESSAGES/RADIO -->
@@ -238,6 +249,15 @@ export default {
 </style>
 
 <style>
+.chat-container {
+    height: calc(100vh - 120px); /* Adjust 200px based on your header height */
+    overflow: hidden;
+}
+
+.chat-iframe {
+    height: 100%;
+    border: none;
+}
 span.buildinfo {
     font-size: 70%;
     margin-left: 30px;
@@ -262,8 +282,8 @@ a.centered-section {
     .nav-side-menu {
         overflow-x: hidden;
         padding: 0;
-        background-color: rgb(29, 36, 52);
-        background: linear-gradient(0deg, rgb(20, 25, 36) 51%, rgb(37, 47, 71) 100%);
+        background-color: #202020;
+        /* background: linear-gradient(0deg, rgb(20, 25, 36) 51%, rgb(37, 47, 71) 100%); */
         position: fixed !important;
         top: 0px;
         height: 100%;
@@ -375,16 +395,16 @@ a.centered-section {
 
     ::-webkit-scrollbar {
         width: 12px;
-        background-color: rgba(0, 0, 0, 0);
+        background-color: #202020;
     }
 
     ::-webkit-scrollbar-thumb {
         border-radius: 5px;
-        box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1);
+        box-shadow: inset 0 0 6px rgba(62, 62, 62, 0.859);
         -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1);
         -moz-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1);
-        background: rgb(60, 75, 112);
-        background: linear-gradient(0deg, rgb(67, 95, 155) 51%, rgb(61, 79, 121) 100%);
+        background: rgb(133, 128, 132);
+        background: linear-gradient(0deg, rgb(203, 203, 203) 51%, rgb(203, 203, 203) 100%);
     }
 
     .custom-control-inline {
@@ -432,13 +452,13 @@ a.centered-section {
         flex-flow: row wrap;
         justify-content: space-evenly;
         overflow: hidden;
-        padding: 0px 0px 12px 0px;
+        padding: 12px 0px 12px 0px;
         cursor: pointer;
         font-size: 16px;
     }
 
     .tabholder a {
-        background: rgb(41,51,75);
+        background: #202020;
         float: left;
         padding: 2px 9px 2px 9px;
         border: 1px solid rgba(91, 100, 117, 0.76);
@@ -493,7 +513,7 @@ a.centered-section {
             z-index: 10 !important;
             padding: 3px;
             background-color: rgba(248, 248, 248, 0.769);
-            color: rgb(58, 58, 58);
+            color: rgb(98, 95, 95);
             height: auto;
             width: 40px;
             text-align: center;
@@ -520,11 +540,11 @@ a.centered-section {
 
     @media only screen and (min-width: 991px) and (max-width: 1439px) {
         .nav-side-menu {
-            max-width: 27% !important;
+            max-width: 35% !important;
         }
 
         .col-lg-10 {
-            max-width: 73% !important;
+            max-width: 65% !important;
         }
 
         main {
@@ -534,7 +554,7 @@ a.centered-section {
 
     @media only screen and (min-width: 1440px) and (max-width: 2000px) {
         .nav-side-menu {
-        max-width: 20% !important;
+            max-width: 30% !important;
         }
 
         main {
@@ -542,13 +562,13 @@ a.centered-section {
         }
 
         .col-lg-10 {
-            max-width: 80% !important;
+            max-width: 70% !important;
         }
     }
 
     @media only screen and (min-width: 2000px) {
         .nav-side-menu {
-            max-width: 15% !important;
+            max-width: 25% !important;
         }
 
         main {
@@ -556,7 +576,7 @@ a.centered-section {
         }
 
         .col-lg-10 {
-            max-width: 85% !important;
+            max-width: 75% !important;
         }
     }
 

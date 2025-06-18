@@ -31,6 +31,7 @@
 import VProgress from './SideBarFileManagerProgressBar.vue'
 import Worker from '../tools/parsers/parser.worker.js'
 import { store } from './Globals'
+import { v4 as uuidv4 } from 'uuid'
 
 import { MAVLink20Processor as MAVLink } from '../libs/mavlink'
 
@@ -63,6 +64,28 @@ export default {
         this.$eventHub.$off('open-sample')
     },
     methods: {
+        // Added
+        async sendFileToChatbot (file) {
+            try {
+                const fileId = uuidv4()
+                const userId = 'fozyurt'
+                const formData = new FormData()
+                formData.append('file', file)
+                const response = await fetch(`http://127.0.0.1:8001/api/files/${fileId}`, {
+                    method: 'POST',
+                    headers: { 'user-id': userId },
+                    body: formData
+                })
+                if (response.ok) {
+                    console.log('File sent to chatbot successfully')
+                } else {
+                    console.error('Failed to send file to chatbot')
+                }
+            } catch (error) {
+                console.error('Error sending file to chatbot:', error)
+            }
+        },
+        // Added
         trimFile () {
             worker.postMessage({ action: 'trimFile', time: this.state.timeRange })
         },
@@ -151,6 +174,9 @@ export default {
             this.state.processStatus = 'Pre-processing...'
             this.state.processPercentage = 100
             this.file = file
+            // Added
+            this.sendFileToChatbot(file)
+            // Added
             const reader = new FileReader()
             reader.onload = function (e) {
                 const data = reader.result
