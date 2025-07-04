@@ -31,7 +31,19 @@ async def main(message: cl.Message):
         file_id = files[0]["file_id"]
         user_id = "fozyurt"
         response = requests.get(url = f"{base_url}/api/files/{file_id}/status", headers = {"user-id": user_id})
-        flight_status = response.json()        
+        flight_status = response.json()     
+        
+        # url = "https://ardupilot.org/copter/docs/logmessages.html#logmessages"  
+        # parser = DynamicTableParser(url)
+        # data = parser.extract_all_data()
+        # parser.save_to_json("extracted_data.json")
+        # parser.save_to_csv("extracted_data")
+        # dfs = parser.to_dataframes()
+        
+        for name, df in dfs.items():
+            print(f"\n{name} DataFrame shape: {df.shape}")
+            if not df.empty:
+                print(df.head())           
         
         input = f"""
                  Flight data is loaded:
@@ -43,7 +55,6 @@ async def main(message: cl.Message):
         requests.delete(url = f"{base_url}/api/files/{file_id}", headers = {"user-id": user_id}) 
     else:
         input = message.content
-    
     
     prompt_template = ChatPromptTemplate.from_messages([MessagesPlaceholder(variable_name="chat_history"), ("user", "{input}")])  
     prompts = prompt_template.format_messages(chat_history = chat_history, input = input)
