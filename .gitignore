@@ -77,7 +77,10 @@ fabric.properties
 
 bin-files
 analysis.ipynb
+analysis-1.ipynb
 .venv
 
 .env
 exploratory-data-analysis.ipynb
+index.html
+
