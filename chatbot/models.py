@@ -6,7 +6,6 @@ class FileReceiveResponse(BaseModel):
     file_id: str
     file_path: str
     filename: str
-    content: str = ""
     
 class ChatMessage(BaseModel):
     message: str = Field(..., min_length=1, max_length=1000, description="User's question about the flight data")
@@ -42,3 +41,11 @@ class HealthResponse(BaseModel):
 class DeleteFileResponse(BaseModel):
     message: str
     file_id: str
+    
+class VectorstoreUpdateRequest(BaseModel):
+    content: str
+    index_path: str
+    
+class VectorstoreQueryRequest(BaseModel):
+    content: str
+    index_path: str

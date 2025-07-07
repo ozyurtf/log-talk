@@ -2,6 +2,7 @@
 # Whether to enable telemetry (default: true). No personal data is collected.
 enable_telemetry = true
 
+
 # List of environment variables to be provided by each user to use the app.
 user_env = []
 
@@ -22,7 +23,7 @@ allow_origins = ["*"]
 unsafe_allow_html = false
 
 # Process and display mathematical expressions. This can clash with "$" characters in messages.
-latex = true
+latex = false
 
 # Automatically tag threads with the current chat profile (if a chat profile is used)
 auto_tag_thread = true
@@ -32,7 +33,7 @@ edit_message = true
 
 # Authorize users to spontaneously upload files with messages
 [features.spontaneous_file_upload]
-    enabled = false
+    enabled = true
     # Define accepted file types using MIME types
     # Examples:
     # 1. For specific file types:
@@ -53,11 +54,10 @@ edit_message = true
 [UI]
 # Name of the assistant.
 name = "Assistant"
-logo = "public/brain.jpg"
-favicon = "public/favicon.ico"
 
-default_theme = "light"
-layout = "wide"
+# default_theme = "dark"
+
+# layout = "wide"
 
 # Description of the assistant. This is used for HTML tags.
 # description = ""
@@ -67,7 +67,7 @@ cot = "full"
 
 # Specify a CSS file that can be used to customize the user interface.
 # The CSS file can be served from the public directory or via an external link.
-# custom_css = "/public/test.css"
+custom_css = "/public/test.css"
 
 # Specify a Javascript file that can be used to customize the user interface.
 # The Javascript file can be served from the public directory.
@@ -89,3 +89,6 @@ cot = "full"
 
 [meta]
 generated_by = "2.3.0"
+
+[auth]
+enabled = true

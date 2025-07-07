@@ -2,18 +2,15 @@ import pandas as pd
 from langchain_community.document_loaders import WebBaseLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
-import re
 from pymavlink import mavutil
-from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-import json
-import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import json
 from typing import Dict, List, Optional, Any
 import re
 from collections import defaultdict
+import requests
 
 executor = ThreadPoolExecutor(max_workers=4)
 
@@ -89,9 +86,11 @@ class DynamicTableParser:
         """Extract context around the table (headers, captions, nearby text)"""
         context = {
             'preceding_headers': [],
+            'following_descriptions': [],
             'caption': None,
             'nearby_text': [],
             'section_title': None,
+            'table_description': None,
             'table_id': None,
             'table_class': None
         }
@@ -105,7 +104,7 @@ class DynamicTableParser:
         if caption:
             context['caption'] = caption.get_text(strip=True)
         
-        # Look for preceding headers (h1-h6)
+        # Look for preceding headers (h1-h6) and context
         current = table.previous_sibling
         header_distance = 0
         while current and header_distance < 5:
@@ -126,6 +125,50 @@ class DynamicTableParser:
                         context['nearby_text'].append(text)
             current = current.previous_sibling
             header_distance += 1
+        
+        # Look for following descriptions/explanations
+        current = table.next_sibling
+        desc_distance = 0
+        while current and desc_distance < 5:
+            if hasattr(current, 'name'):
+                if current.name in ['p', 'div', 'span', 'small', 'em', 'i']:
+                    text = current.get_text(strip=True)
+                    if text and len(text) > 10:  # Meaningful description
+                        context['following_descriptions'].append({
+                            'text': text,
+                            'distance': desc_distance,
+                            'tag': current.name
+                        })
+                        # Use the first substantial description as the main description
+                        if not context['table_description'] and len(text) > 20:
+                            context['table_description'] = text
+                elif current.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table']:
+                    # Stop if we hit another major element
+                    break
+            current = current.next_sibling
+            desc_distance += 1
+        
+        # Also check for descriptions in parent/sibling containers
+        parent = table.parent
+        if parent:
+            # Look for description in same container after the table
+            for sibling in parent.find_all(['p', 'div', 'span'], recursive=False):
+                if sibling.get_text(strip=True) and len(sibling.get_text(strip=True)) > 20:
+                    # Check if this comes after the table
+                    try:
+                        if table in sibling.previous_siblings or table.parent in sibling.previous_siblings:
+                            continue
+                        text = sibling.get_text(strip=True)
+                        if text not in [desc['text'] for desc in context['following_descriptions']]:
+                            context['following_descriptions'].append({
+                                'text': text,
+                                'distance': 999,  # Mark as container-level
+                                'tag': sibling.name
+                            })
+                            if not context['table_description']:
+                                context['table_description'] = text
+                    except:
+                        pass
         
         return context
     
@@ -396,13 +439,60 @@ class DynamicTableParser:
         for table_name, table_info in self.extracted_data.items():
             json_data[table_name] = {
                 'data': table_info['data'],
-                'metadata': table_info['metadata']
+                'metadata': {
+                    'row_count': table_info['metadata']['row_count'],
+                    'column_count': table_info['metadata']['column_count'],
+                    'section_title': table_info['metadata']['context']['section_title'],
+                    'table_description': table_info['metadata']['context']['table_description'],
+                    'columns': table_info['metadata']['structure']['columns'],
+                    'data_types': table_info['metadata']['structure']['data_types'],
+                    'all_descriptions': table_info['metadata']['context']['following_descriptions'],
+                    'full_context': table_info['metadata']['context']
+                }
             }
         
-        with open(filename, 'w', encoding='utf-8') as f:
+        with open(f"output/{filename}", 'w', encoding='utf-8') as f:
             json.dump(json_data, f, indent=2, ensure_ascii=False, default=str)
         
         print(f"Data saved to {filename}")
+    
+    def get_table_with_description(self, table_name: str) -> Dict[str, Any]:
+        """Get a specific table with its full description and context"""
+        if table_name not in self.extracted_data:
+            return {}
+        
+        table_info = self.extracted_data[table_name]
+        return {
+            'name': table_name,
+            'description': table_info['metadata']['context']['table_description'],
+            'section_title': table_info['metadata']['context']['section_title'],
+            'all_descriptions': table_info['metadata']['context']['following_descriptions'],
+            'data': table_info['data'],
+            'columns': table_info['metadata']['structure']['columns'],
+            'data_types': table_info['metadata']['structure']['data_types']
+        }
+    
+    def get_all_descriptions(self) -> Dict[str, List[str]]:
+        """Get all descriptions for all tables"""
+        if not self.extracted_data:
+            self.extract_all_data()
+        
+        descriptions = {}
+        for table_name, table_info in self.extracted_data.items():
+            table_descriptions = []
+            
+            # Add main description
+            if table_info['metadata']['context']['table_description']:
+                table_descriptions.append(table_info['metadata']['context']['table_description'])
+            
+            # Add all following descriptions
+            for desc in table_info['metadata']['context']['following_descriptions']:
+                if desc['text'] not in table_descriptions:
+                    table_descriptions.append(desc['text'])
+            
+            descriptions[table_name] = table_descriptions
+        
+        return descriptions
     
     def save_to_csv(self, base_filename: str):
         """Save each table to separate CSV files"""
@@ -414,7 +504,7 @@ class DynamicTableParser:
             clean_name = re.sub(r'\s+', '_', clean_name)
             filename = f"{base_filename}_{clean_name}.csv"
             
-            df.to_csv(filename, index=False)
+            df.to_csv(f"output/{filename}", index=False)
             print(f"Saved {table_name} to {filename}")
     
     def print_summary(self):
@@ -434,6 +524,12 @@ class DynamicTableParser:
             if metadata['context']['section_title']:
                 print(f"  Section: {metadata['context']['section_title']}")
             
+            if metadata['context']['table_description']:
+                desc = metadata['context']['table_description']
+                if len(desc) > 100:
+                    desc = desc[:100] + "..."
+                print(f"  Description: {desc}")
+            
             if metadata['structure']['columns']:
                 cols = metadata['structure']['columns'][:5]  # Show first 5 columns
                 col_str = ', '.join(cols)
@@ -444,3 +540,19 @@ class DynamicTableParser:
             if metadata['structure']['data_types']:
                 types = list(set(metadata['structure']['data_types'].values()))
                 print(f"  Data types: {', '.join(types)}")
+            
+            # Show following descriptions if any
+            if metadata['context']['following_descriptions']:
+                print(f"  Additional descriptions: {len(metadata['context']['following_descriptions'])} found")
+
+def find_url(text):
+    url_pattern = re.compile(
+        r'(?:(?:http|ftp)s?://|www\.)[^\s/$.?#].[^\s]*', re.IGNORECASE)
+    match = url_pattern.search(text)
+    return match.group(0) if match else None
+
+
+
+
+
+

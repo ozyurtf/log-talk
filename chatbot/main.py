@@ -9,10 +9,15 @@ from dotenv import load_dotenv
 from chainlit.utils import mount_chainlit
 from typing import Dict
 import asyncio
+import os 
+from langchain.docstore.document import Document
+from langchain.embeddings import OpenAIEmbeddings
 
 app = FastAPI(title = "Drone Log API", description = "API for processing drone flight logs", version = "1.0.0")
 
 executor = ThreadPoolExecutor(max_workers=4)
+embedding_model = OpenAIEmbeddings()
+cache = {}
 
 load_dotenv()
 
@@ -42,7 +47,7 @@ async def receive_file(file_id: str, file: UploadFile = File(...), user_id: str 
         raise HTTPException(status_code=400, detail="Only .bin and .log files are supported")
     
     if file.size and file.size > 100 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File too large. Max size is 100MB")
+        raise HTTPException(status_code=400, detail= "File too large. Max size is 100MB")
     
     file_path = upload_dir / f"{file_id}_{file.filename}"
     
@@ -99,24 +104,6 @@ async def list_files():
             files.append(file_summary)
     return files
 
-@app.post("/api/files/{file_id}/chat", description = "Ask questions about a specific uploaded file")
-async def chat_with_file_data(request: ChatMessage, file_id: str, user_id: str = Header(...)):
-    if user_id not in flight_data_store or file_id not in flight_data_store[user_id]:
-        raise HTTPException(status_code = 404, detail="File not found")
-    
-    file_data = flight_data_store[user_id][file_id]
-        
-    prompt = f"""
-    The user uploaded drone flight data from file: {file_data['filename']}
-    The flight data has been processed.
-    User question: {request.message}
-    Answer the question based on the processed flight data: {file_data["content"]}
-    """
-    
-    return {"response": f"Based on your flight data from {file_data['filename']}: {request.message}",
-            "prompt": prompt,
-            "filename": file_data['filename']}
-
 @app.delete("/api/files/{file_id}", description = "Delete an uploaded file and its data")
 async def delete_file(file_id: str, user_id: str = Header(...)):
     if user_id not in flight_data_store:
@@ -132,6 +119,40 @@ async def delete_file(file_id: str, user_id: str = Header(...)):
         
     del flight_data_store[user_id][file_id]
     return {"message": f"File {file_data['filename']} deleted successfully"}
+
+
+@app.post("/api/vectorstore/update")
+async def update_vectorstore(request: VectorstoreUpdateRequest):
+    url = find_url(request.content)
+    if not url or url in cache:
+        return {"status": "skipped", "message": "No new URL found. Vectorstore not updated."}
+
+    if url not in cache:
+        cache[url] = True
+        parser = DynamicTableParser(url)
+        extracted_data = parser.extract_all_data()
+
+        docs = [Document(page_content=json.dumps(extracted_data[key])) for key in extracted_data]
+
+        if os.path.exists(request.index_path):
+            vectorstore = FAISS.load_local(request.index_path, embedding_model, allow_dangerous_deserialization=True)
+            vectorstore.add_documents(docs)
+        else:
+            vectorstore = FAISS.from_documents(docs, embedding_model)
+
+        vectorstore.save_local(request.index_path)
+
+    return {"status": "updated", "message": f"Vectorstore updated with data from {url}"}
+
+@app.post("/api/vectorstore/query")
+async def query_vectorstore(request: VectorstoreQueryRequest):
+    if not os.path.exists(request.index_path):
+        return {"context": ""}
+
+    vectorstore = FAISS.load_local(request.index_path, embedding_model, allow_dangerous_deserialization=True)
+    relevant_docs = vectorstore.similarity_search(request.content, k=5)
+    retrieved_context = "\n\n".join([doc.page_content for doc in relevant_docs])
+    return {"context": retrieved_context}
 
 @app.get("/health")
 async def health_check():
